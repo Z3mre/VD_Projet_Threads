@@ -72,53 +72,62 @@ int main(int argc, char* argv[])
 {
     int i;
 
-    ouvrirFenetreGraphique();
+     ouvrirFenetreGraphique();
 
-    for(i = 0; i < 6; i++)
-    {
-        afficherStanley(HAUT, i, NORMAL);
-        afficherStanley(HAUT, i, SPRAY);
+      pthread_t threadFenetreGraphique;
+
+    // Création du thread fctThreadFenetreGraphique
+    int res = pthread_create(&threadFenetreGraphique, NULL, fctThreadFenetreGraphique, NULL);
+    if (res != 0) {
+        perror("Erreur lors de la création du thread");
+        exit(EXIT_FAILURE);
     }
 
-    afficherStanley(ECHELLE, 0);
-    afficherStanley(ECHELLE, 1);
+    // for(i = 0; i < 6; i++)
+    // {
+    //     afficherStanley(HAUT, i, NORMAL);
+    //     afficherStanley(HAUT, i, SPRAY);
+    // }
 
-    for(i = 0; i < 4; i++)
-    {
-        afficherStanley(BAS, i, NORMAL);
-        afficherStanley(BAS, i, SPRAY);
-    }
+    // afficherStanley(ECHELLE, 0);
+    // afficherStanley(ECHELLE, 1);
 
-    for(i = 0; i < 5; i++)
-    {
-        afficherAmi(i, NORMAL);
-        afficherAmi(i, TOUCHE);
-    }
+    // for(i = 0; i < 4; i++)
+    // {
+    //     afficherStanley(BAS, i, NORMAL);
+    //     afficherStanley(BAS, i, SPRAY);
+    // }
 
-    for(i = 0; i < 5; i++)
-        afficherChenilleG(i);
+    // for(i = 0; i < 5; i++)
+    // {
+    //     afficherAmi(i, NORMAL);
+    //     afficherAmi(i, TOUCHE);
+    // }
 
-    for(i = 0; i < 7; i++)
-        afficherChenilleD(i);
+    // for(i = 0; i < 5; i++)
+    //     afficherChenilleG(i);
 
-    for (i = 0; i < 5; i++)
-    {
-        afficherAraigneeG(i);
-        afficherAraigneeD(i);
-    }
+    // for(i = 0; i < 7; i++)
+    //     afficherChenilleD(i);
 
-    for(i = 0; i < 4; i++)
-    {
-        afficherInsecticideG(i);
-        afficherInsecticideD(i + 1);
-    }
+    // for (i = 0; i < 5; i++)
+    // {
+    //     afficherAraigneeG(i);
+    //     afficherAraigneeD(i);
+    // }
 
-    afficherGuepe(0);
-    afficherGuepe(1);
+    // for(i = 0; i < 4; i++)
+    // {
+    //     afficherInsecticideG(i);
+    //     afficherInsecticideD(i + 1);
+    // }
 
-    afficherEchecs(3);
+    // afficherGuepe(0);
+    // afficherGuepe(1);
 
-    afficherScore(0);
+    // afficherEchecs(3);
+
+    // afficherScore(0);
 
     actualiserFenetreGraphique();
     while(1)
