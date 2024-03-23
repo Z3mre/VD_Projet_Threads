@@ -76,21 +76,36 @@ int main(int argc, char* argv[])
 
     pthread_t threadFenetreGraphique;
     pthread_t threadEvenements;
+    pthread_t threadStanley;
+
 
     // Création du thread fctThreadFenetreGraphique
     int res = pthread_create(&threadFenetreGraphique, NULL, fctThreadFenetreGraphique, NULL);
     if (res != 0) {
-        perror("Erreur lors de la création du thread");
+        perror("Erreur lors de la création de threadFenetreGraphique");
         exit(EXIT_FAILURE);
     }
 
     res = pthread_create(&threadEvenements, NULL, fctThreadEvenements, NULL);
     if (res != 0) {
-        perror("Erreur lors de la création du thread");
+        perror("Erreur lors de la création de threadEvenements");
         exit(EXIT_FAILURE);
     }
 
+    res = pthread_create(&threadStanley, NULL, fctThreadStanley, NULL);
+    if (res != 0) {
+        perror("Erreur lors de la création de threadStanley");
+        exit(EXIT_FAILURE);
+    }
+
+
+    pthread_join(threadStanley,NULL);
     pthread_join(threadEvenements,NULL);
+
+    /*pthread_mutex_lock(&mutexEvenement);
+
+    pthread_cond_wait(&condEvenement,&mutexEvenement);
+    pthread_mutex_unlock(&mutexEvenement);*/
 
 
     /*for(i = 0; i < 6; i++)
@@ -170,6 +185,8 @@ int main(int argc, char* argv[])
                 printf("SDLK_SPACE\n");
         }
     }*/
+
+    return 0;
 }
 
 //**************************************************************************************
@@ -184,8 +201,7 @@ void* fctThreadFenetreGraphique(void*)
         {
             afficherAmi(i, etatJeu.etatAmis[i]);
         }
-        
-        
+
         afficherEchecs(etatJeu.nbEchecs);
         afficherScore(etatJeu.score);
 
@@ -204,16 +220,14 @@ void *fctThreadEvenements(void *)
     {
         pthread_mutex_lock(&mutexEvenement);
         evenement = lireEvenement();
-
+        printf("ThreadEvenements signale un événement à ThreadStanley...\n");
+        pthread_cond_signal(&condEvenement); // Réveiller ThreadStanley
+        pthread_mutex_unlock(&mutexEvenement);
 
         switch(evenement)
         {
-
             case SDL_QUIT:
                 printf("QUIT\n");
-                evenement = SDL_QUIT;
-                pthread_cond_signal(&condEvenement);
-                pthread_mutex_unlock(&mutexEvenement);
                 exit(0);
 
             case SDLK_UP:
@@ -234,14 +248,29 @@ void *fctThreadEvenements(void *)
 
             case SDLK_SPACE:
                 printf("SDLK_SPACE\n");
+                break;
+
+            default:
+                printf("AUCUN");
+                evenement = AUCUN; 
+                break;
         }
+    } 
 
-        
-        pthread_cond_signal(&condEvenement);
-        pthread_mutex_unlock(&mutexEvenement);
+    struct timespec attente = {0, 100000000}; // 0,1 seconde en nanosecondes
+    nanosleep(&attente, NULL);
 
-        struct timespec attente = {0, 100000000}; // 0,1 seconde en nanosecondes
-        nanosleep(&attente, NULL);
-    }
+    return NULL;
+}
+
+
+void *fctThreadStanley(void *)
+{
+    pthread_mutex_lock(&mutexEvenement);
+    printf("Thread Stanley attend un événement...\n");
+    pthread_cond_wait(&condEvenement, &mutexEvenement); // Mettre en attente sur la variable de condition
+    printf("Thread Stanley réveillé par ThreadEvenements, événement reçu : %d\n", evenement);
+    pthread_mutex_unlock(&mutexEvenement);
+
     return NULL;
 }
