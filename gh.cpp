@@ -20,7 +20,7 @@ void handlerSIGQUIT(int);
 
 void destructeurVS(void *p);
 
-pthread_cond_t condEvenement;
+pthread_cond_t condEvenement ;
 pthread_cond_t condEchec;
 
 pthread_key_t keySpec;
@@ -72,9 +72,10 @@ int main(int argc, char* argv[])
 {
     int i;
 
-     ouvrirFenetreGraphique();
+    ouvrirFenetreGraphique();
 
-      pthread_t threadFenetreGraphique;
+    pthread_t threadFenetreGraphique;
+    pthread_t threadEvenements;
 
     // Création du thread fctThreadFenetreGraphique
     int res = pthread_create(&threadFenetreGraphique, NULL, fctThreadFenetreGraphique, NULL);
@@ -83,60 +84,70 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
-    // for(i = 0; i < 6; i++)
-    // {
-    //     afficherStanley(HAUT, i, NORMAL);
-    //     afficherStanley(HAUT, i, SPRAY);
-    // }
+    res = pthread_create(&threadEvenements, NULL, fctThreadEvenements, NULL);
+    if (res != 0) {
+        perror("Erreur lors de la création du thread");
+        exit(EXIT_FAILURE);
+    }
 
-    // afficherStanley(ECHELLE, 0);
-    // afficherStanley(ECHELLE, 1);
+    pthread_join(threadEvenements,NULL);
 
-    // for(i = 0; i < 4; i++)
-    // {
-    //     afficherStanley(BAS, i, NORMAL);
-    //     afficherStanley(BAS, i, SPRAY);
-    // }
 
-    // for(i = 0; i < 5; i++)
-    // {
-    //     afficherAmi(i, NORMAL);
-    //     afficherAmi(i, TOUCHE);
-    // }
+    /*for(i = 0; i < 6; i++)
+    {
+        afficherStanley(HAUT, i, NORMAL);
+        afficherStanley(HAUT, i, SPRAY);
+    }
 
-    // for(i = 0; i < 5; i++)
-    //     afficherChenilleG(i);
+    afficherStanley(ECHELLE, 0);
+    afficherStanley(ECHELLE, 1);
 
-    // for(i = 0; i < 7; i++)
-    //     afficherChenilleD(i);
+    for(i = 0; i < 4; i++)
+    {
+        afficherStanley(BAS, i, NORMAL);
+        afficherStanley(BAS, i, SPRAY);
+    }
 
-    // for (i = 0; i < 5; i++)
-    // {
-    //     afficherAraigneeG(i);
-    //     afficherAraigneeD(i);
-    // }
+    for(i = 0; i < 5; i++)
+    {
+        afficherAmi(i, NORMAL);
+        afficherAmi(i, TOUCHE);
+    }
 
-    // for(i = 0; i < 4; i++)
-    // {
-    //     afficherInsecticideG(i);
-    //     afficherInsecticideD(i + 1);
-    // }
+    for(i = 0; i < 5; i++)
+        afficherChenilleG(i);
 
-    // afficherGuepe(0);
-    // afficherGuepe(1);
+    for(i = 0; i < 7; i++)
+        afficherChenilleD(i);
 
-    // afficherEchecs(3);
+    for (i = 0; i < 5; i++)
+    {
+        afficherAraigneeG(i);
+        afficherAraigneeD(i);
+    }
 
-    // afficherScore(0);
+    for(i = 0; i < 4; i++)
+    {
+        afficherInsecticideG(i);
+        afficherInsecticideD(i + 1);
+    }
+
+    afficherGuepe(0);
+    afficherGuepe(1);
+
+    afficherEchecs(3);
+
+    afficherScore(0);
 
     actualiserFenetreGraphique();
     while(1)
     {
-        evenement = lireEvenement();
+        int event = lireEvenement();
 
         switch(evenement)
         {
             case SDL_QUIT:
+                printf("QUIT\n");
                 exit(0);
 
             case SDLK_UP:
@@ -158,7 +169,7 @@ int main(int argc, char* argv[])
             case SDLK_SPACE:
                 printf("SDLK_SPACE\n");
         }
-    }
+    }*/
 }
 
 //**************************************************************************************
@@ -169,23 +180,12 @@ void* fctThreadFenetreGraphique(void*)
         restaurerImageInterne(); // Restaure l'image initiale du jeu en mémoire
         
         // Affichage des personnages, du score et des échecs dans l'image interne du jeu
-        afficherStanley(etatJeu.etatStanley, etatJeu.positionStanley, etatJeu.actionStanley);
         for(int i = 0; i < 5; i++)
+        {
             afficherAmi(i, etatJeu.etatAmis[i]);
-        for(int i = 0; i < 5; i++)
-        {
-            afficherChenilleG(i);
-            afficherChenilleD(i);
-            afficherAraigneeG(i);
-            afficherAraigneeD(i);
         }
-        for(int i = 0; i < 4; i++)
-        {
-            afficherInsecticideG(i);
-            afficherInsecticideD(i + 1);
-        }
-        for(int i = 0; i < 2; i++)
-            afficherGuepe(i);
+        
+        
         afficherEchecs(etatJeu.nbEchecs);
         afficherScore(etatJeu.score);
 
@@ -196,5 +196,52 @@ void* fctThreadFenetreGraphique(void*)
         nanosleep(&attente, NULL);
     }
     pthread_exit(0);
-    pthread_exit(0);
+}
+
+void *fctThreadEvenements(void *)
+{
+    while(1)
+    {
+        pthread_mutex_lock(&mutexEvenement);
+        evenement = lireEvenement();
+
+
+        switch(evenement)
+        {
+
+            case SDL_QUIT:
+                printf("QUIT\n");
+                evenement = SDL_QUIT;
+                pthread_cond_signal(&condEvenement);
+                pthread_mutex_unlock(&mutexEvenement);
+                exit(0);
+
+            case SDLK_UP:
+                printf("KEY_UP\n");
+                break;
+
+            case SDLK_DOWN:
+                printf("KEY_DOWN\n");
+                break;
+
+            case SDLK_LEFT:
+                printf("KEY_LEFT\n");
+                break;
+
+            case SDLK_RIGHT:
+                printf("KEY_RIGHT\n");
+                break;
+
+            case SDLK_SPACE:
+                printf("SDLK_SPACE\n");
+        }
+
+        
+        pthread_cond_signal(&condEvenement);
+        pthread_mutex_unlock(&mutexEvenement);
+
+        struct timespec attente = {0, 100000000}; // 0,1 seconde en nanosecondes
+        nanosleep(&attente, NULL);
+    }
+    return NULL;
 }
