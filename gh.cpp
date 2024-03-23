@@ -196,4 +196,5 @@ void* fctThreadFenetreGraphique(void*)
         nanosleep(&attente, NULL);
     }
     pthread_exit(0);
+    pthread_exit(0);
 }
