@@ -81,6 +81,7 @@ int main(int argc, char* argv[])
     pthread_t threadFenetreGraphique;
     pthread_t threadEvenements;
     pthread_t threadStanley;
+    pthread_t threadEnnemis;
 
 
     // Création des threads
@@ -102,6 +103,13 @@ int main(int argc, char* argv[])
     res = pthread_create(&threadStanley, NULL, fctThreadStanley, NULL);
     if (res != 0) {
         perror("Erreur lors de la création de threadStanley");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("main : Création du threadEnnemis \n");
+    res = pthread_create(&threadEnnemis, NULL, fctThreadEnnemis, NULL);
+    if (res != 0) {
+        perror("Erreur lors de la création de threadEnnemis");
         exit(EXIT_FAILURE);
     }
 
@@ -205,9 +213,6 @@ void* fctThreadStanley(void*)
 {
     while(true)
     {
-printf("\t DEBUG \n");
-printf("\t pos stnl = %d %d %d\n",etatJeu.etatStanley, etatJeu.positionStanley, etatJeu.actionStanley);
-
         printf("fctThreadStanley : Verrouillage du mutexEvenement \n");
         pthread_mutex_lock(&mutexEvenement);
 
