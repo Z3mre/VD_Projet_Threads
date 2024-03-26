@@ -202,6 +202,8 @@ void* fctThreadFenetreGraphique(void*)
             afficherAmi(i, etatJeu.etatAmis[i]);
         }
 
+        afficherStanley(BAS, etatJeu.etatStanley, NORMAL); 
+
         afficherEchecs(etatJeu.nbEchecs);
         afficherScore(etatJeu.score);
 
@@ -218,10 +220,15 @@ void *fctThreadEvenements(void *)
 {
     while(1)
     {
-        pthread_mutex_lock(&mutexEvenement);
         evenement = lireEvenement();
+
+        printf("Mise en attente de ThreadEvenements\n");
+        pthread_mutex_lock(&mutexEvenement);
+
         printf("ThreadEvenements signale un événement à ThreadStanley...\n");
         pthread_cond_signal(&condEvenement); // Réveiller ThreadStanley
+
+        printf("Réveil de ThreadEvenements\n");
         pthread_mutex_unlock(&mutexEvenement);
 
         switch(evenement)
@@ -264,7 +271,7 @@ void *fctThreadEvenements(void *)
 }
 
 
-void *fctThreadStanley(void *)
+/*void *fctThreadStanley(void *)
 {
     pthread_mutex_lock(&mutexEvenement);
     printf("Thread Stanley attend un événement...\n");
@@ -273,4 +280,63 @@ void *fctThreadStanley(void *)
     pthread_mutex_unlock(&mutexEvenement);
 
     return NULL;
+}*/
+
+void* fctThreadStanley(void*)
+{
+    while(true)
+    {
+printf("\n\t pos stnl = %d\n",etatJeu.positionStanley);
+        pthread_mutex_lock(&mutexEvenement);
+        pthread_cond_wait(&condEvenement, &mutexEvenement); // Mettre en attente sur la variable de condition
+        pthread_mutex_lock(&mutexEtatJeu);  
+        switch(etatJeu.etatStanley)
+        {
+            case BAS:
+                switch(evenement)
+                {
+                    case SDLK_SPACE:
+                        if(etatJeu.positionStanley == 0)
+                        {
+                            etatJeu.actionStanley = SPRAY;
+                            pthread_mutex_unlock(&mutexEtatJeu);
+                            
+                            struct timespec attente = {0, 200000000}; // 0,1 seconde en nanosecondes
+                            nanosleep(&attente, NULL);
+
+                            pthread_mutex_lock(&mutexEtatJeu);
+                            etatJeu.actionStanley = NORMAL;
+                        }
+                
+                        break;
+
+                    case SDLK_LEFT:
+                        if(etatJeu.positionStanley > 0)
+                            etatJeu.positionStanley--;
+                            afficherStanley(BAS, etatJeu.positionStanley, NORMAL);
+                        break;
+                    
+                    case SDLK_RIGHT:
+                        if(etatJeu.positionStanley < 3)
+                            etatJeu.positionStanley++;
+                            afficherStanley(BAS, etatJeu.positionStanley, NORMAL);
+                        break;
+                }
+                break;
+
+            case ECHELLE:
+                break;
+
+            case HAUT:
+                break;
+        }
+
+        pthread_mutex_unlock(&mutexEtatJeu);
+
+        evenement = AUCUN;
+
+        pthread_mutex_unlock(&mutexEvenement);
+    }
+
+    pthread_exit(0);
 }
