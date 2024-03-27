@@ -68,6 +68,10 @@ S_ETAT_JEU etatJeu =
 int evenement = AUCUN; 
 int echec = AUCUN;
 
+struct sigaction sigAct;
+sigset_t sigpro;
+
+int DELAI = 1600000000; // 1,6 seconde en nanoseconde
 
 
 int main(int argc, char* argv[])
@@ -76,6 +80,13 @@ int main(int argc, char* argv[])
 
 
     ouvrirFenetreGraphique();
+
+    sigAct.sa_handler = handlerSIGALRM;
+	sigaction(SIGALRM,&sigAct,NULL);
+    
+    pthread_mutex_init(&mutexEvenement,NULL);
+
+    pthread_cond_init(&condEvenement,NULL);
 
 
     pthread_t threadFenetreGraphique;
@@ -106,6 +117,9 @@ int main(int argc, char* argv[])
         exit(EXIT_FAILURE);
     }
 
+    pthread_key_create(&keySpec, NULL);
+    //pthread_setspecific(keySpec, &DELAI);
+
     printf("main : Création du threadEnnemis \n");
     res = pthread_create(&threadEnnemis, NULL, fctThreadEnnemis, NULL);
     if (res != 0) {
@@ -114,10 +128,11 @@ int main(int argc, char* argv[])
     }
 
 
-    // Attente de leurs terminaisons 
+    // Attente de terminaison
     printf("main : Attente du threadEvenements \n");
     pthread_join(threadEvenements,NULL);
 
+    destructeurVS(&keySpec);
 
     return 0;
 }
@@ -355,4 +370,133 @@ void* fctThreadStanley(void*)
 
     printf("fctThreadStanley : Fin du thread \n");
     pthread_exit(0);
+}
+
+void* fctThreadEnnemis(void*)
+{
+    pthread_t threadGuepe;
+    pthread_t threadChenilleG;
+    pthread_t threadChenilleD;
+    pthread_t threadAraigneeG;
+    pthread_t threadAraigneeD;
+
+    struct timespec temps;
+
+    int res,typeEnnemi;
+
+    sigemptyset(&sigpro); // Initialisation de l'ensemble de signaux
+    sigaddset(&sigpro, SIGALRM); // Ajout du signal SIGALRM à l'ensemble
+    sigprocmask(SIG_SETMASK, &sigpro, NULL); // seul SIGALARM est autorisé par le processus
+
+    alarm(5);
+
+    while(true)
+    {
+        int* delai = &DELAI;
+        pthread_setspecific(keySpec, delai);
+
+        temps.tv_sec = *delai/1000000000;
+		temps.tv_nsec =  *delai % 1000000000;
+        nanosleep(&temps,NULL);
+        srand(time(NULL));
+        typeEnnemi = rand()%5;
+        
+        printf("\t DEBUG %d\n",*delai);
+        
+
+        switch(typeEnnemi)
+        {
+            case GUEPE:
+                printf("fctThreadEnnemis : Création du threadGuepe \n");
+                res = pthread_create(&threadGuepe, NULL, fctThreadGuepe, NULL);
+                if (res != 0) {
+                    perror("Erreur lors de la création de threadGuepe");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+
+            case CHENILLE_G:
+                printf("fctThreadEnnemis : Création du threadChenilleG \n");
+                res = pthread_create(&threadChenilleG, NULL, fctThreadChenilleG, NULL);
+                if (res != 0) {
+                    perror("Erreur lors de la création de threadChenilleG");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+
+            case CHENILLE_D:
+                printf("fctThreadEnnemis : Création du threadChenilleD \n");
+                res = pthread_create(&threadChenilleD, NULL, fctThreadChenilleD, NULL);
+                if (res != 0) {
+                    perror("Erreur lors de la création de threadChenilleD");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+
+            case ARAIGNEE_G:
+                printf("fctThreadEnnemis : Création du threadAraigneeG \n");
+                res = pthread_create(&threadAraigneeG, NULL, fctThreadAraigneeG, NULL);
+                if (res != 0) {
+                    perror("Erreur lors de la création de threadAraigneeG");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+
+            case ARAIGNEE_D:
+                printf("fctThreadEnnemis : Création du threadAraigneeD \n");
+                res = pthread_create(&threadAraigneeD, NULL, fctThreadAraigneeD, NULL);
+                if (res != 0) {
+                    perror("Erreur lors de la création de threadAraigneeD");
+                    exit(EXIT_FAILURE);
+                }
+                break;
+        }
+    }
+
+    printf("fctThreadEnnemis : Fin du thread \n");
+    pthread_exit(0);
+}
+
+void* fctThreadGuepe(void*)
+{
+    printf("fctThreadGuepe : Fin du thread \n");
+    pthread_exit(0);
+}
+
+void* fctThreadChenilleG(void*)
+{
+    printf("fctThreadChenilleG : Fin du thread \n");
+    pthread_exit(0);
+}
+
+void* fctThreadChenilleD(void*)
+{
+    printf("fctThreadChenilleD : Fin du thread \n");
+    pthread_exit(0);
+}
+
+void* fctThreadAraigneeG(void*)
+{
+    printf("fctThreadAraigneeG : Fin du thread \n");
+    pthread_exit(0);
+}
+
+void* fctThreadAraigneeD(void*)
+{
+    printf("fctThreadAraigneeD : Fin du thread \n");
+    pthread_exit(0);
+}
+
+
+
+void handlerSIGALRM(int sign)
+{
+    DELAI = rand() % 500000001 + 1100000000;
+
+    alarm(5);
+}
+
+void destructeurVS(void *p)
+{
+    free(p);
 }
