@@ -145,6 +145,7 @@ void* fctThreadFenetreGraphique(void*)
     {
         restaurerImageInterne(); // Restaure l'image initiale du jeu en mémoire
         
+        afficherStanley(etatJeu.etatStanley, etatJeu.positionStanley, etatJeu.actionStanley); 
 
         // Affichage des personnages, du score et des échecs dans l'image interne du jeu
         for(int i = 0; i < 5; i++)
@@ -152,10 +153,28 @@ void* fctThreadFenetreGraphique(void*)
             afficherAmi(i, etatJeu.etatAmis[i]);
         }
 
-        afficherStanley(etatJeu.etatStanley, etatJeu.positionStanley, etatJeu.actionStanley); 
+        /*for(int i = 0; i < 5; i++)
+        {
+            afficherChenilleG(i);
+            afficherChenilleD(i);
+            afficherAraigneeG(i);
+            afficherAraigneeD(i);
+        }
+
+        for(int i = 0; i < 4; i++)
+        {
+            afficherInsecticideG(i);
+            afficherInsecticideD(i + 1);
+        }*/
+
+        for(int i = 0; i < 2; i++)
+        {
+            afficherGuepe(i);
+        }
 
         afficherEchecs(etatJeu.nbEchecs);
         afficherScore(etatJeu.score);
+        
 
         actualiserFenetreGraphique(); // Rendre visible l'image interne du jeu
 
@@ -415,7 +434,7 @@ void* fctThreadEnnemis(void*)
                 }
                 break;
 
-            case CHENILLE_G:
+            /*case CHENILLE_G:
                 printf("fctThreadEnnemis : Création du threadChenilleG \n");
                 res = pthread_create(&threadChenilleG, NULL, fctThreadChenilleG, NULL);
                 if (res != 0) {
@@ -449,7 +468,7 @@ void* fctThreadEnnemis(void*)
                     perror("Erreur lors de la création de threadAraigneeD");
                     exit(EXIT_FAILURE);
                 }
-                break;
+                break;*/
         }
     }
 
@@ -459,6 +478,31 @@ void* fctThreadEnnemis(void*)
 
 void* fctThreadGuepe(void*)
 {
+    /*struct sigaction sa;
+	sa.sa_handler = HandlerSIGUSR1;
+	sigemptyset(&sa.sa_mask);
+	sa.sa_flags = 0;
+	sigaction(SIGUSR1, &sa, NULL);*/
+
+    int* position = (int*)pthread_getspecific(keySpec);
+    if(position == NULL)
+    {
+        *position=0;
+        pthread_setspecific(keySpec, position);
+    }
+    
+
+    etatJeu.guepes[0].presence = NORMAL;
+    etatJeu.guepes[0].tid = pthread_self();
+
+    sleep(1);
+
+    etatJeu.guepes[0].presence = AUCUN;
+    etatJeu.guepes[0].tid = 0;
+
+    etatJeu.guepes[1].presence = NORMAL;
+    etatJeu.guepes[1].tid = pthread_self();
+
     printf("fctThreadGuepe : Fin du thread \n");
     pthread_exit(0);
 }
