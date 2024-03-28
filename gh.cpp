@@ -20,10 +20,13 @@ void handlerSIGQUIT(int);
 
 void destructeurVS(void *p);
 
+void initCle();
+
 pthread_cond_t condEvenement ;
 pthread_cond_t condEchec;
 
 pthread_key_t keySpec;
+pthread_once_t controleur = PTHREAD_ONCE_INIT;
 
 pthread_mutex_t mutexEtatJeu;
 pthread_mutex_t mutexEvenement;
@@ -68,25 +71,41 @@ S_ETAT_JEU etatJeu =
 int evenement = AUCUN; 
 int echec = AUCUN;
 
-struct sigaction sigAct;
-sigset_t sigpro;
-
-int DELAI = 1600000000; // 1,6 seconde en nanoseconde
-
 
 int main(int argc, char* argv[])
 {
+printf("main> = %u\n",pthread_self());
     int i;
 
 
     ouvrirFenetreGraphique();
 
+
+    struct sigaction sigAct;
+    sigfillset(&sigAct.sa_mask);
     sigAct.sa_handler = handlerSIGALRM;
-	sigaction(SIGALRM,&sigAct,NULL);
-    
+
+    if (sigaction(SIGALRM, &sigAct, NULL) == -1)
+    {
+        perror("Erreur de sigaction SIGALRM");
+        exit(1);
+    }
+
+    if (sigaction(SIGINT, &sigAct, NULL) == -1)
+    {
+        perror("Erreur de sigaction SIGUSR1");
+        exit(1);
+    }
+
+    sigprocmask(SIG_SETMASK, &sigAct.sa_mask, NULL);
+
+
     pthread_mutex_init(&mutexEvenement,NULL);
 
     pthread_cond_init(&condEvenement,NULL);
+
+
+    pthread_once(&controleur,initCle);
 
 
     pthread_t threadFenetreGraphique;
@@ -116,9 +135,6 @@ int main(int argc, char* argv[])
         perror("Erreur lors de la création de threadStanley");
         exit(EXIT_FAILURE);
     }
-
-    pthread_key_create(&keySpec, NULL);
-    //pthread_setspecific(keySpec, &DELAI);
 
     printf("main : Création du threadEnnemis \n");
     res = pthread_create(&threadEnnemis, NULL, fctThreadEnnemis, NULL);
@@ -167,10 +183,10 @@ void* fctThreadFenetreGraphique(void*)
             afficherInsecticideD(i + 1);
         }*/
 
-        for(int i = 0; i < 2; i++)
-        {
-            afficherGuepe(i);
-        }
+        printf("\t\tDEBUG AFFICHAGE GUEPE \n");
+        etatJeu.guepes[0].presence = NORMAL;
+        afficherGuepe(etatJeu.guepes->presence);
+
 
         afficherEchecs(etatJeu.nbEchecs);
         afficherScore(etatJeu.score);
@@ -393,6 +409,7 @@ void* fctThreadStanley(void*)
 
 void* fctThreadEnnemis(void*)
 {
+printf("fctThreadEnnemis> = %u\n",pthread_self());
     pthread_t threadGuepe;
     pthread_t threadChenilleG;
     pthread_t threadChenilleD;
@@ -400,28 +417,36 @@ void* fctThreadEnnemis(void*)
     pthread_t threadAraigneeD;
 
     struct timespec temps;
-
     int res,typeEnnemi;
 
-    sigemptyset(&sigpro); // Initialisation de l'ensemble de signaux
-    sigaddset(&sigpro, SIGALRM); // Ajout du signal SIGALRM à l'ensemble
-    sigprocmask(SIG_SETMASK, &sigpro, NULL); // seul SIGALARM est autorisé par le processus
+    int* delai = (int*)malloc(sizeof(int*));
+    *delai = 1600000000;
+    if(pthread_setspecific(keySpec,delai))
+    {
+        printf("fctThreadEnnemis : Erreur pthread_setspecific \n");
+    }
+
+    sigset_t mask;
+    sigfillset(&mask);
+    sigdelset(&mask, SIGALRM);
+    sigprocmask(SIG_SETMASK, &mask, NULL);
 
     alarm(5);
 
+    
+
     while(true)
     {
-        int* delai = &DELAI;
-        pthread_setspecific(keySpec, delai);
+        delai = (int*)pthread_getspecific(keySpec);
 
         temps.tv_sec = *delai/1000000000;
 		temps.tv_nsec =  *delai % 1000000000;
         nanosleep(&temps,NULL);
         srand(time(NULL));
-        typeEnnemi = rand()%5;
-        
+        //typeEnnemi = rand()%5;
+        typeEnnemi = GUEPE;
+
         printf("\t DEBUG %d\n",*delai);
-        
 
         switch(typeEnnemi)
         {
@@ -476,35 +501,60 @@ void* fctThreadEnnemis(void*)
     pthread_exit(0);
 }
 
+void handlerSIGALRM(int sign)
+{
+    int* delai = (int*)pthread_getspecific(keySpec);
+    
+    *delai = rand() % 500000001 + 1100000000;
+
+    if(pthread_setspecific(keySpec,delai))
+    {
+        printf("handlerSIGALRM : Erreur pthread_setspecific \n");
+    }
+
+    alarm(5);
+}
+
 void* fctThreadGuepe(void*)
 {
     /*struct sigaction sa;
 	sa.sa_handler = HandlerSIGUSR1;
 	sigemptyset(&sa.sa_mask);
 	sa.sa_flags = 0;
-	sigaction(SIGUSR1, &sa, NULL);*/
-
-    int* position = (int*)pthread_getspecific(keySpec);
-    if(position == NULL)
-    {
-        *position=0;
-        pthread_setspecific(keySpec, position);
-    }
+	sigaction(SIGUSR1, &sa, NULL);
     
+    sigset_t mask;
+    sigfillset(&mask);
+    sigdelset(&mask, SIGINT);
+    sigprocmask(SIG_SETMASK, &mask, NULL);*/
 
-    etatJeu.guepes[0].presence = NORMAL;
-    etatJeu.guepes[0].tid = pthread_self();
+    int* position = (int*)malloc(sizeof(int*));
+    *position = 1;
+    pthread_setspecific(keySpec, position);
+
+    etatJeu.guepes[*position].presence = NORMAL;
+    etatJeu.guepes[*position].tid = pthread_self();
+
+    printf("\t\tDEBUG 1 pos : %d présence %d \n",*position,etatJeu.guepes[*position].presence);
 
     sleep(1);
 
-    etatJeu.guepes[0].presence = AUCUN;
-    etatJeu.guepes[0].tid = 0;
+    etatJeu.guepes[*position].presence = AUCUN;
 
-    etatJeu.guepes[1].presence = NORMAL;
-    etatJeu.guepes[1].tid = pthread_self();
+    *position = 1;
+    pthread_setspecific(keySpec, position);
+    
+    etatJeu.guepes[*position].presence = NORMAL;
+    etatJeu.guepes[*position].tid = pthread_self();
+
+    printf("\t\tDEBUG 2 pos : %d présence %d \n",*position,etatJeu.guepes[*position].presence);
 
     printf("fctThreadGuepe : Fin du thread \n");
     pthread_exit(0);
+}
+
+void handlerSIGINT(int sign)
+{
 }
 
 void* fctThreadChenilleG(void*)
@@ -532,15 +582,13 @@ void* fctThreadAraigneeD(void*)
 }
 
 
-
-void handlerSIGALRM(int sign)
-{
-    DELAI = rand() % 500000001 + 1100000000;
-
-    alarm(5);
-}
-
 void destructeurVS(void *p)
 {
     free(p);
+}
+
+void initCle()
+{
+    printf("initCle : Création de la clé \n");
+    pthread_key_create(&keySpec, NULL);
 }
