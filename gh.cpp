@@ -201,6 +201,12 @@ int main(int argc, char* argv[])
                     usleep(1500000); // 1.5 seconde en microseconde
                     etatJeu.etatAmis[FLEUR_HG] = NORMAL;
                     break;
+
+                case FLEUR_HD:
+                    etatJeu.etatAmis[FLEUR_HD] = TOUCHE;
+                    usleep(1500000); // 1.5 seconde en microseconde
+                    etatJeu.etatAmis[FLEUR_HD] = NORMAL;
+                    break;
             }
             
             echec = AUCUN;
@@ -247,6 +253,14 @@ void* fctThreadFenetreGraphique(void*)
             if(etatJeu.chenillesG[i].presence == NORMAL)
             {
                 afficherChenilleG(i);
+            }
+        }
+
+        for(int i = 0; i < 7; i++)
+        {
+            if(etatJeu.chenillesD[i].presence == NORMAL)
+            {
+                afficherChenilleD(i);
             }
         }
 
@@ -466,57 +480,79 @@ void* fctThreadStanley(void*)
                             printf("fctThreadStanley : Verrouillage du mutexEtatJeu \n");
                             pthread_mutex_lock(&mutexEtatJeu);
 
-                            if(etatJeu.positionStanley == 0 && etatJeu.chenillesG[0].presence == NORMAL)
-                            {
-                                 printf("\t DEBUG 0\n");
-                                res = pthread_kill(etatJeu.chenillesG[0].tid, SIGUSR1);
-                                if (res != 0) 
-                                {
-                                    perror("Erreur lors de l'envoi du signal au thread");
-                                    exit(EXIT_FAILURE);
-                                }
 
-                                etatJeu.score ++;
+                            for(int i=0; i<2; i++)
+                            {
+                                if(etatJeu.positionStanley == 0 && etatJeu.chenillesG[i].presence == NORMAL)
+                                {
+                                    res = pthread_kill(etatJeu.chenillesG[i].tid, SIGUSR1);
+                                    if (res != 0) 
+                                    {
+                                        perror("Erreur lors de l'envoi du signal au thread");
+                                        exit(EXIT_FAILURE);
+                                    }
+
+                                    etatJeu.score ++;
+                                }
+                            }
+                            for(int i=2; i<4; i++)
+                            {
+                                if(etatJeu.positionStanley == 1 && etatJeu.chenillesG[i].presence == NORMAL)
+                                {
+                                    res = pthread_kill(etatJeu.chenillesG[i].tid, SIGUSR1);
+                                    if (res != 0) 
+                                    {
+                                        perror("Erreur lors de l'envoi du signal au thread");
+                                        exit(EXIT_FAILURE);
+                                    }
+
+                                    etatJeu.score ++;
+                                }
                             }
 
-                            if(etatJeu.positionStanley == 0 && etatJeu.chenillesG[1].presence == NORMAL)
+                            for(int i=1; i<3; i++)
                             {
-                                 printf("\t DEBUG 0\n");
-                                res = pthread_kill(etatJeu.chenillesG[1].tid, SIGUSR1);
-                                if (res != 0) 
+                                if(etatJeu.positionStanley == 3 && etatJeu.chenillesD[i].presence == NORMAL)
                                 {
-                                    perror("Erreur lors de l'envoi du signal au thread");
-                                    exit(EXIT_FAILURE);
-                                }
+                                    res = pthread_kill(etatJeu.chenillesD[i].tid, SIGUSR1);
+                                    if (res != 0) 
+                                    {
+                                        perror("Erreur lors de l'envoi du signal au thread");
+                                        exit(EXIT_FAILURE);
+                                    }
 
-                                etatJeu.score ++;
+                                    etatJeu.score ++;
+                                }
+                            }
+                            for(int i=3; i<5; i++)
+                            {
+                                if(etatJeu.positionStanley == 4 && etatJeu.chenillesD[i].presence == NORMAL)
+                                {
+                                    res = pthread_kill(etatJeu.chenillesD[i].tid, SIGUSR1);
+                                    if (res != 0) 
+                                    {
+                                        perror("Erreur lors de l'envoi du signal au thread");
+                                        exit(EXIT_FAILURE);
+                                    }
+
+                                    etatJeu.score ++;
+                                }
+                            }
+                            for(int i=5; i<7; i++)
+                            {
+                                if(etatJeu.positionStanley == 5 && etatJeu.chenillesD[i].presence == NORMAL)
+                                {
+                                    res = pthread_kill(etatJeu.chenillesD[i].tid, SIGUSR1);
+                                    if (res != 0) 
+                                    {
+                                        perror("Erreur lors de l'envoi du signal au thread");
+                                        exit(EXIT_FAILURE);
+                                    }
+
+                                    etatJeu.score ++;
+                                }
                             }
 
-                            if(etatJeu.positionStanley == 1 && etatJeu.chenillesG[2].presence == NORMAL)
-                            {
-                                 printf("\t DEBUG 0\n");
-                                res = pthread_kill(etatJeu.chenillesG[2].tid, SIGUSR1);
-                                if (res != 0) 
-                                {
-                                    perror("Erreur lors de l'envoi du signal au thread");
-                                    exit(EXIT_FAILURE);
-                                }
-
-                                etatJeu.score ++;
-                            }
-
-                            if(etatJeu.positionStanley == 1 && etatJeu.chenillesG[3].presence == NORMAL)
-                            {
-                                 printf("\t DEBUG 0\n");
-                                res = pthread_kill(etatJeu.chenillesG[3].tid, SIGUSR1);
-                                if (res != 0) 
-                                {
-                                    perror("Erreur lors de l'envoi du signal au thread");
-                                    exit(EXIT_FAILURE);
-                                }
-
-                                etatJeu.score ++;
-                            }
 
                             etatJeu.actionStanley = NORMAL;
                         }
@@ -626,14 +662,14 @@ void* fctThreadEnnemis(void*)
                     }
                     break;
 
-                /*case CHENILLE_D:
+                case CHENILLE_D:
                     printf("fctThreadEnnemis : Création du threadChenilleD \n");
                     res = pthread_create(&threadChenilleD, NULL, fctThreadChenilleD, NULL);
                     if (res != 0) {
                         perror("Erreur lors de la création de threadChenilleD");
                         exit(EXIT_FAILURE);
                     }
-                    break;*/
+                    break;
 
                 /*case ARAIGNEE_G:
                     printf("fctThreadEnnemis : Création du threadAraigneeG \n");
@@ -678,6 +714,8 @@ void handlerSIGALRM(int sign)
 
     alarm(5);
 }
+
+
 
 void* fctThreadGuepe(void*)
 {
@@ -739,6 +777,8 @@ void handlerSIGINT(int sign)
     printf("handlerSIGINT : Fin du thread \n");
     pthread_exit(0);
 }
+
+
 
 void* fctThreadChenilleG(void*)
 {
@@ -803,22 +843,93 @@ void* fctThreadChenilleG(void*)
     pthread_exit(0);
 }
 
+void* fctThreadChenilleD(void*)
+{
+    sigset_t mask;
+    sigfillset(&mask); // masque TOUS les signaux
+    sigdelset(&mask, SIGUSR1); // supprime SIGUSR1 des signaux masqués
+    sigprocmask(SIG_SETMASK, &mask, NULL); // applique le masque au processus
+
+
+    S_LOCALISATION loca;
+    S_LOCALISATION* localisation = (S_LOCALISATION*)malloc(sizeof(S_LOCALISATION));
+
+    loca.orientation = DROITE;
+    loca.position = 0;
+    *localisation = loca;
+
+    while(localisation->position < 6)
+    {
+        pthread_setspecific(keySpec, localisation);
+        etatJeu.chenillesD[localisation->position].presence = NORMAL;
+        etatJeu.chenillesD[localisation->position].tid = pthread_self();
+        usleep(800000); // 0.8 seconde en microseconde
+        etatJeu.chenillesD[localisation->position].presence = AUCUN;
+        localisation->position ++;
+
+        if(etatJeu.etatStanley == HAUT && etatJeu.positionStanley == 3 && etatJeu.actionStanley == SPRAY)
+        {
+            etatJeu.chenillesD[localisation->position].presence = AUCUN;
+            etatJeu.score ++;
+            pthread_exit(0);
+        }
+        if(etatJeu.etatStanley == HAUT && etatJeu.positionStanley == 4 && etatJeu.actionStanley == SPRAY)
+        {
+            etatJeu.chenillesD[localisation->position].presence = AUCUN;
+            etatJeu.score ++;
+            pthread_exit(0);
+        }
+        if(etatJeu.etatStanley == HAUT && etatJeu.positionStanley == 5 && etatJeu.actionStanley == SPRAY)
+        {
+            etatJeu.chenillesD[localisation->position].presence = AUCUN;
+            etatJeu.score ++;
+            pthread_exit(0);
+        }
+    }
+
+    pthread_setspecific(keySpec, localisation);
+    etatJeu.chenillesD[localisation->position].presence = NORMAL;
+    etatJeu.chenillesD[localisation->position].tid = pthread_self();
+    usleep(800000); // 0.8 seconde en microseconde
+
+    printf("fctThreadChenilleD : Verrouillage du mutexEchec \n");
+    pthread_mutex_lock(&mutexEchec);
+
+    echec = FLEUR_HD;
+
+    printf("fctThreadChenilleD : Envoi d'un signal au main \n");
+    pthread_cond_signal(&condEchec); // Réveiller ThreadPrincipal
+
+    printf("fctThreadChenilleD : Déverrouillage du mutexEchec \n");
+    pthread_mutex_unlock(&mutexEchec);
+
+    usleep(1500000); // 1.5 seconde en microseconde
+
+    etatJeu.chenillesD[localisation->position].presence = AUCUN;
+
+
+    printf("fctThreadChenilleD : Fin du thread \n");
+    pthread_exit(0);
+}
+
 void handlerSIGUSR1(int sign)
 {
-    printf("\t DEBUGGGGGGGGGGGG\n");
-    int* position = (int*)pthread_getspecific(keySpec);
+    S_LOCALISATION* localisation = (S_LOCALISATION*)pthread_getspecific(keySpec);
 
-    etatJeu.chenillesG[*position].presence = AUCUN;
-
+    if(localisation->orientation == GAUCHE)
+    {
+        etatJeu.chenillesG[localisation->position].presence = AUCUN;
+    }
+    else if(localisation->orientation == DROITE)
+    {
+        etatJeu.chenillesD[localisation->position].presence = AUCUN;
+    }
+    
     printf("handlerSIGUSR1 : Fin du thread \n");
     pthread_exit(0);
 }
 
-void* fctThreadChenilleD(void*)
-{
-    printf("fctThreadChenilleD : Fin du thread \n");
-    pthread_exit(0);
-}
+
 
 void* fctThreadAraigneeG(void*)
 {
