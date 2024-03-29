@@ -74,7 +74,6 @@ int echec = AUCUN;
 
 int main(int argc, char* argv[])
 {
-printf("main> = %u\n",pthread_self());
     int i;
 
 
@@ -83,14 +82,15 @@ printf("main> = %u\n",pthread_self());
 
     struct sigaction sigAct;
     sigfillset(&sigAct.sa_mask);
-    sigAct.sa_handler = handlerSIGALRM;
 
+    sigAct.sa_handler = handlerSIGALRM;
     if (sigaction(SIGALRM, &sigAct, NULL) == -1)
     {
         perror("Erreur de sigaction SIGALRM");
         exit(1);
     }
 
+    sigAct.sa_handler = handlerSIGINT;
     if (sigaction(SIGINT, &sigAct, NULL) == -1)
     {
         perror("Erreur de sigaction SIGUSR1");
@@ -101,8 +101,12 @@ printf("main> = %u\n",pthread_self());
 
 
     pthread_mutex_init(&mutexEvenement,NULL);
+    pthread_mutex_init(&mutexEtatJeu,NULL);
+    pthread_mutex_init(&mutexEchec,NULL);
 
     pthread_cond_init(&condEvenement,NULL);
+    pthread_cond_init(&condEchec,NULL);
+   
 
 
     pthread_once(&controleur,initCle);
@@ -144,9 +148,43 @@ printf("main> = %u\n",pthread_self());
     }
 
 
+    // Code relatif aux 3 échecs
+    while(1)
+    {
+        printf("main : Verrouillage du mutexEchec \n");
+        pthread_mutex_lock(&mutexEchec);
+
+        while (echec == AUCUN)
+        {
+            pthread_cond_wait(&condEchec, &mutexEchec); // Mettre en attente sur la variable de condition
+            printf("main : Thread réveillé \n");
+        }
+
+        etatJeu.nbEchecs++;
+        
+        etatJeu.etatAmis[CHAT] = TOUCHE;
+
+          if(etatJeu.nbEchecs == 3)
+        {
+            printf("main : FIN du threadEvenements -> 3 échecs \n");
+            pthread_mutex_unlock(&mutexEchec);
+            pthread_join(threadEvenements,NULL);
+        }
+
+        usleep(1500000); // 1.5 seconde en microseconde
+    
+        etatJeu.etatAmis[CHAT] = NORMAL;
+        
+        echec = AUCUN;
+
+        printf("main : Déverrouillage du mutexEchec \n");
+        pthread_mutex_unlock(&mutexEchec);
+    }
+   
+
     // Attente de terminaison
-    printf("main : Attente du threadEvenements \n");
     pthread_join(threadEvenements,NULL);
+    printf("main : FIN du threadEvenements \n");
 
     destructeurVS(&keySpec);
 
@@ -183,9 +221,14 @@ void* fctThreadFenetreGraphique(void*)
             afficherInsecticideD(i + 1);
         }*/
 
-        printf("\t\tDEBUG AFFICHAGE GUEPE \n");
-        etatJeu.guepes[0].presence = NORMAL;
-        afficherGuepe(etatJeu.guepes->presence);
+        if(etatJeu.guepes[0].presence == NORMAL)
+        {
+            afficherGuepe(0);
+        }
+        if(etatJeu.guepes[1].presence == NORMAL)
+        {
+            afficherGuepe(1);
+        }
 
 
         afficherEchecs(etatJeu.nbEchecs);
@@ -261,6 +304,8 @@ void *fctThreadEvenements(void *)
 
 void* fctThreadStanley(void*)
 {
+    int res;
+     
     while(true)
     {
         printf("fctThreadStanley : Verrouillage du mutexEvenement \n");
@@ -290,6 +335,28 @@ void* fctThreadStanley(void*)
 
                             printf("fctThreadStanley : Verrouillage du mutexEtatJeu \n");
                             pthread_mutex_lock(&mutexEtatJeu);
+
+                            if(etatJeu.guepes[0].presence == NORMAL)
+                            {
+                                res = pthread_kill(etatJeu.guepes[0].tid, SIGINT);
+                                if (res != 0) 
+                                {
+                                    perror("Erreur lors de l'envoi du signal au thread");
+                                    exit(EXIT_FAILURE);
+                                }
+                            }
+                            
+                            if(etatJeu.guepes[1].presence == NORMAL)
+                            {
+                                res = pthread_kill(etatJeu.guepes[1].tid, SIGINT);
+                                if (res != 0) 
+                                {
+                                    perror("Erreur lors de l'envoi du signal au thread");
+                                    exit(EXIT_FAILURE);
+                                }
+                                
+                                etatJeu.score ++;
+                            }
 
                             etatJeu.actionStanley = NORMAL;
                         }
@@ -409,7 +476,6 @@ void* fctThreadStanley(void*)
 
 void* fctThreadEnnemis(void*)
 {
-printf("fctThreadEnnemis> = %u\n",pthread_self());
     pthread_t threadGuepe;
     pthread_t threadChenilleG;
     pthread_t threadChenilleD;
@@ -434,7 +500,7 @@ printf("fctThreadEnnemis> = %u\n",pthread_self());
     alarm(5);
 
     
-
+    
     while(true)
     {
         delai = (int*)pthread_getspecific(keySpec);
@@ -442,58 +508,72 @@ printf("fctThreadEnnemis> = %u\n",pthread_self());
         temps.tv_sec = *delai/1000000000;
 		temps.tv_nsec =  *delai % 1000000000;
         nanosleep(&temps,NULL);
-        srand(time(NULL));
-        //typeEnnemi = rand()%5;
-        typeEnnemi = GUEPE;
 
-        printf("\t DEBUG %d\n",*delai);
-
-        switch(typeEnnemi)
+        printf("fctThreadEnnemis : Verrouillage du mutexEchec \n");
+        pthread_mutex_lock(&mutexEchec);
+        printf("\t DEBUG avant condition %d\n",echec);
+        if(echec == AUCUN)
         {
-            case GUEPE:
-                printf("fctThreadEnnemis : Création du threadGuepe \n");
-                res = pthread_create(&threadGuepe, NULL, fctThreadGuepe, NULL);
-                if (res != 0) {
-                    perror("Erreur lors de la création de threadGuepe");
-                    exit(EXIT_FAILURE);
-                }
-                break;
+            printf("fctThreadEnnemis : Déverrouillage du mutexEchec \n");
+            pthread_mutex_unlock(&mutexEchec);
 
-            /*case CHENILLE_G:
-                printf("fctThreadEnnemis : Création du threadChenilleG \n");
-                res = pthread_create(&threadChenilleG, NULL, fctThreadChenilleG, NULL);
-                if (res != 0) {
-                    perror("Erreur lors de la création de threadChenilleG");
-                    exit(EXIT_FAILURE);
-                }
-                break;
+            srand(time(NULL));
+            //typeEnnemi = rand()%5;
+            typeEnnemi = rand()%3;
+            //typeEnnemi = GUEPE;
 
-            case CHENILLE_D:
-                printf("fctThreadEnnemis : Création du threadChenilleD \n");
-                res = pthread_create(&threadChenilleD, NULL, fctThreadChenilleD, NULL);
-                if (res != 0) {
-                    perror("Erreur lors de la création de threadChenilleD");
-                    exit(EXIT_FAILURE);
-                }
-                break;
+            switch(typeEnnemi)
+            {
+                case GUEPE:
+                    printf("fctThreadEnnemis : Création du threadGuepe \n");
+                    res = pthread_create(&threadGuepe, NULL, fctThreadGuepe, NULL);
+                    if (res != 0) {
+                        perror("Erreur lors de la création de threadGuepe");
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
 
-            case ARAIGNEE_G:
-                printf("fctThreadEnnemis : Création du threadAraigneeG \n");
-                res = pthread_create(&threadAraigneeG, NULL, fctThreadAraigneeG, NULL);
-                if (res != 0) {
-                    perror("Erreur lors de la création de threadAraigneeG");
-                    exit(EXIT_FAILURE);
-                }
-                break;
+                /*case CHENILLE_G:
+                    printf("fctThreadEnnemis : Création du threadChenilleG \n");
+                    res = pthread_create(&threadChenilleG, NULL, fctThreadChenilleG, NULL);
+                    if (res != 0) {
+                        perror("Erreur lors de la création de threadChenilleG");
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
 
-            case ARAIGNEE_D:
-                printf("fctThreadEnnemis : Création du threadAraigneeD \n");
-                res = pthread_create(&threadAraigneeD, NULL, fctThreadAraigneeD, NULL);
-                if (res != 0) {
-                    perror("Erreur lors de la création de threadAraigneeD");
-                    exit(EXIT_FAILURE);
-                }
-                break;*/
+                case CHENILLE_D:
+                    printf("fctThreadEnnemis : Création du threadChenilleD \n");
+                    res = pthread_create(&threadChenilleD, NULL, fctThreadChenilleD, NULL);
+                    if (res != 0) {
+                        perror("Erreur lors de la création de threadChenilleD");
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
+
+                case ARAIGNEE_G:
+                    printf("fctThreadEnnemis : Création du threadAraigneeG \n");
+                    res = pthread_create(&threadAraigneeG, NULL, fctThreadAraigneeG, NULL);
+                    if (res != 0) {
+                        perror("Erreur lors de la création de threadAraigneeG");
+                        exit(EXIT_FAILURE);
+                    }
+                    break;
+
+                case ARAIGNEE_D:
+                    printf("fctThreadEnnemis : Création du threadAraigneeD \n");
+                    res = pthread_create(&threadAraigneeD, NULL, fctThreadAraigneeD, NULL);
+                    if (res != 0) {
+                        perror("Erreur lors de la création de threadAraigneeD");
+                        exit(EXIT_FAILURE);
+                    }
+                    break;*/
+            }
+        }
+        else
+        {
+            printf("fctThreadEnnemis : Déverrouillage du mutexEchec \n");
+            pthread_mutex_unlock(&mutexEchec);
         }
     }
 
@@ -517,28 +597,28 @@ void handlerSIGALRM(int sign)
 
 void* fctThreadGuepe(void*)
 {
-    /*struct sigaction sa;
-	sa.sa_handler = HandlerSIGUSR1;
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = 0;
-	sigaction(SIGUSR1, &sa, NULL);
-    
     sigset_t mask;
-    sigfillset(&mask);
-    sigdelset(&mask, SIGINT);
-    sigprocmask(SIG_SETMASK, &mask, NULL);*/
+    sigfillset(&mask); // masque TOUS les signaux
+    sigdelset(&mask, SIGINT); // supprime SIGINT des signaux masqués
+    sigprocmask(SIG_SETMASK, &mask, NULL); // applique le masque au processus
+
 
     int* position = (int*)malloc(sizeof(int*));
-    *position = 1;
+    *position = 0;
     pthread_setspecific(keySpec, position);
 
     etatJeu.guepes[*position].presence = NORMAL;
     etatJeu.guepes[*position].tid = pthread_self();
 
-    printf("\t\tDEBUG 1 pos : %d présence %d \n",*position,etatJeu.guepes[*position].presence);
-
     sleep(1);
-
+    if(etatJeu.etatStanley == BAS && etatJeu.positionStanley == 2 && etatJeu.actionStanley == SPRAY)
+    {
+        printf("\t DEBUG \n");
+        etatJeu.guepes[0].presence = AUCUN;
+        etatJeu.score ++;
+        pthread_exit(0);
+    }
+    
     etatJeu.guepes[*position].presence = AUCUN;
 
     *position = 1;
@@ -547,14 +627,36 @@ void* fctThreadGuepe(void*)
     etatJeu.guepes[*position].presence = NORMAL;
     etatJeu.guepes[*position].tid = pthread_self();
 
-    printf("\t\tDEBUG 2 pos : %d présence %d \n",*position,etatJeu.guepes[*position].presence);
+    sleep(1);
 
+    printf("fctThreadGuepe : VErrouillage du mutexEchec \n");
+    pthread_mutex_lock(&mutexEchec);
+
+    echec = CHAT;
+
+    printf("fctThreadGuepe : Envoi d'un signal au main \n");
+    pthread_cond_signal(&condEchec); // Réveiller ThreadPrincipal
+
+    printf("fctThreadGuepe : Déverrouillage du mutexEchec \n");
+    pthread_mutex_unlock(&mutexEchec);
+
+    usleep(1500000); // 1.5 seconde en microseconde
+
+    etatJeu.guepes[*position].presence = AUCUN;
+
+    
     printf("fctThreadGuepe : Fin du thread \n");
     pthread_exit(0);
 }
 
 void handlerSIGINT(int sign)
 {
+    int* position = (int*)pthread_getspecific(keySpec);
+
+    etatJeu.guepes[*position].presence = AUCUN;
+
+    printf("fctThreadGuepe : Fin du thread \n");
+    pthread_exit(0);
 }
 
 void* fctThreadChenilleG(void*)
