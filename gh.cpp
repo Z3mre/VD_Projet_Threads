@@ -198,7 +198,7 @@ int main(int argc, char* argv[])
                 case CHAT:
                     
                     etatJeu.etatAmis[CHAT] = TOUCHE;
-                    pthread_mutex_unlock(&mutexEtatJeu);
+                    /pthread_mutex_unlock(&mutexEtatJeu);
                     nanosleep(&temps,NULL); // 1.5 seconde en microseconde
                     pthread_mutex_lock(&mutexEtatJeu);
                     etatJeu.etatAmis[CHAT] = NORMAL;
