@@ -10,7 +10,7 @@ ALL: $(PROGRAMS)
 
 gh:	gh.cpp $(OBJS)
 	echo Creation de gh...
-	$(CC) gh.cpp -o gh $(OBJS)  -lrt -lpthread -lSDL
+	$(CC) -g gh.cpp -o gh $(OBJS)  -lrt -lpthread -lSDL
 
 $(PRESENTATION)/presentation.o:	$(PRESENTATION)/presentation.c $(PRESENTATION)/presentation.h
 		echo Creation de presentation.o ...
