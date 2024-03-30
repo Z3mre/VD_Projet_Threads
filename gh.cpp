@@ -182,46 +182,74 @@ int main(int argc, char* argv[])
         {
             pthread_cond_wait(&condEchec, &mutexEchec); // Mettre en attente sur la variable de condition
             printf("main : Thread réveillé \n");
+            //pthread_mutex_lock(&mutexEchec);
         }
+        struct timespec temps;
+        temps.tv_sec = 1;
+        temps.tv_nsec = 500000000;
 
         if(echec != AUCUN)
         {
+            pthread_mutex_lock(&mutexEtatJeu);
             etatJeu.nbEchecs++;
-
+            
             switch(echec)
             {
                 case CHAT:
+                    
                     etatJeu.etatAmis[CHAT] = TOUCHE;
-                    usleep(1500000); // 1.5 seconde en microseconde
+                    pthread_mutex_unlock(&mutexEtatJeu);
+                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+                    pthread_mutex_lock(&mutexEtatJeu);
                     etatJeu.etatAmis[CHAT] = NORMAL;
+                    
                     break;
 
                 case FLEUR_HG:
+                
                     etatJeu.etatAmis[FLEUR_HG] = TOUCHE;
-                    usleep(1500000); // 1.5 seconde en microseconde
+                    //pthread_mutex_unlock(&mutexEtatJeu);
+                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+                    //pthread_mutex_lock(&mutexEtatJeu);
                     etatJeu.etatAmis[FLEUR_HG] = NORMAL;
+                    
                     break;
 
                 case FLEUR_HD:
+                     
                     etatJeu.etatAmis[FLEUR_HD] = TOUCHE;
-                    usleep(1500000); // 1.5 seconde en microseconde
+                    //pthread_mutex_unlock(&mutexEtatJeu);
+                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+                    //pthread_mutex_lock(&mutexEtatJeu);
                     etatJeu.etatAmis[FLEUR_HD] = NORMAL;
+                    
                     break;
 
                 case FLEUR_BG:
+                    
                     etatJeu.etatAmis[FLEUR_BG] = TOUCHE;
-                    usleep(1500000); // 1.5 seconde en microseconde
+                    //pthread_mutex_unlock(&mutexEtatJeu);
+                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+                    //pthread_mutex_lock(&mutexEtatJeu);
                     etatJeu.etatAmis[FLEUR_BG] = NORMAL;
+                    
                     break;
 
                 case FLEUR_BD:
+                    
                     etatJeu.etatAmis[FLEUR_BD] = TOUCHE;
-                    usleep(1500000); // 1.5 seconde en microseconde
+                    //pthread_mutex_unlock(&mutexEtatJeu);
+
+                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+                    
+                    //pthread_mutex_lock(&mutexEtatJeu);
                     etatJeu.etatAmis[FLEUR_BD] = NORMAL;
+                    //pthread_mutex_unlock(&mutexEtatJeu);
                     break;
             }
             
             echec = AUCUN;
+            //pthread_mutex_unlock(&mutexEchec);
         }
     }
    
@@ -317,51 +345,63 @@ void *fctThreadEvenements(void *)
 {
     while(1)
     {
-        evenement = lireEvenement();
+        /*printf("fctThreadEnnemis : Verrouillage du mutexEchec \n");
+        pthread_mutex_lock(&mutexEchec);*/
 
-        printf("fctThreadEvenements : Verrouillage du mutexEvenement \n");
-        pthread_mutex_lock(&mutexEvenement);
-
-        switch(evenement)
+        //if(echec == AUCUN)
         {
-            case SDL_QUIT:
-                printf("QUIT\n");
-                exit(0);
+            evenement = lireEvenement();
 
-            case SDLK_UP:
-                printf("KEY_UP\n");
-                break;
-
-            case SDLK_DOWN:
-                printf("KEY_DOWN\n");
-                break;
-
-            case SDLK_LEFT:
-                printf("KEY_LEFT\n");
-                break;
-
-            case SDLK_RIGHT:
-                printf("KEY_RIGHT\n");
-                break;
-
-            case SDLK_SPACE:
-                printf("SDLK_SPACE\n");
-                break;
-
-            default:
-                printf("AUCUN");
-                evenement = AUCUN; 
-                break;
-        }
-
-        printf("fctThreadEvenements : Envoie d'un signal à un thread en attente sur condEvenement \n");
-        pthread_cond_signal(&condEvenement); // Réveiller ThreadStanley
+            printf("fctThreadEvenements : Verrouillage du mutexEvenement \n");
+            pthread_mutex_lock(&mutexEvenement);
         
-        struct timespec attente = {0, 100000000}; // 0,1 seconde en nanosecondes
-        nanosleep(&attente, NULL);
+            switch(evenement)
+            {
+                case SDL_QUIT:
+                    printf("QUIT\n");
+                    exit(0);
 
-        printf("fctThreadEvenements : Déverrouillage du mutexEvenement \n");
-        pthread_mutex_unlock(&mutexEvenement);
+                case SDLK_UP:
+                    printf("KEY_UP\n");
+                    break;
+
+                case SDLK_DOWN:
+                    printf("KEY_DOWN\n");
+                    break;
+
+                case SDLK_LEFT:
+                    printf("KEY_LEFT\n");
+                    break;
+
+                case SDLK_RIGHT:
+                    printf("KEY_RIGHT\n");
+                    break;
+
+                case SDLK_SPACE:
+                    printf("SDLK_SPACE\n");
+                    break;
+
+                default:
+                    printf("AUCUN");
+                    evenement = AUCUN; 
+                    break;
+            }
+
+            printf("fctThreadEvenements : Envoie d'un signal à un thread en attente sur condEvenement \n");
+            pthread_cond_signal(&condEvenement); // Réveiller ThreadStanley
+            
+            struct timespec attente = {0, 100000000}; // 0,1 seconde en nanosecondes
+            nanosleep(&attente, NULL);
+
+            printf("fctThreadEvenements : Déverrouillage du mutexEvenement \n");
+            pthread_mutex_unlock(&mutexEvenement);
+            
+        }
+        /*else
+        {
+            printf("fctThreadEnnemis : Déverrouillage du mutexEchec \n");
+            pthread_mutex_unlock(&mutexEchec);
+        }*/        
     } 
 
     printf("fctThreadEvenements : Fin du thread \n");
@@ -410,6 +450,8 @@ void* fctThreadStanley(void*)
                                     perror("Erreur lors de l'envoi du signal au thread");
                                     exit(EXIT_FAILURE);
                                 }
+
+                                etatJeu.score ++;
                             }
                             if(etatJeu.positionStanley == 2 && etatJeu.guepes[1].presence == NORMAL)
                             {
@@ -624,6 +666,7 @@ void* fctThreadStanley(void*)
                 break;
         }
 
+
         printf("fctThreadStanley : Déverrouillage du mutexEtatJeu \n");
         pthread_mutex_unlock(&mutexEtatJeu);
 
@@ -685,7 +728,7 @@ void* fctThreadEnnemis(void*)
 
             switch(typeEnnemi)
             {
-                /*case GUEPE:
+                case GUEPE:
                     printf("fctThreadEnnemis : Création du threadGuepe \n");
                     res = pthread_create(&threadGuepe, NULL, fctThreadGuepe, NULL);
                     if (res != 0) {
@@ -710,7 +753,7 @@ void* fctThreadEnnemis(void*)
                         perror("Erreur lors de la création de threadChenilleD");
                         exit(EXIT_FAILURE);
                     }
-                    break;*/
+                    break;
 
                 case ARAIGNEE_G:
                     printf("fctThreadEnnemis : Création du threadAraigneeG \n");
@@ -771,9 +814,10 @@ void* fctThreadGuepe(void*)
     *position = 0;
 
     pthread_setspecific(keySpec, position);
+    // mutex etat jeu
     etatJeu.guepes[*position].presence = NORMAL;
     etatJeu.guepes[*position].tid = pthread_self();
-    usleep(1000000); // 1 seconde en microseconde
+    usleep(1000000); // 1 seconde en microseconde METTRE EN NANOSLEEP
     etatJeu.guepes[*position].presence = AUCUN;
 
     *position = 1;
@@ -781,6 +825,7 @@ void* fctThreadGuepe(void*)
     {
         etatJeu.guepes[1].presence = AUCUN;
         etatJeu.score ++;
+        // mutex etat jeu
         pthread_exit(0);
     }
 
