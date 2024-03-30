@@ -183,74 +183,21 @@ int main(int argc, char* argv[])
         {
             pthread_cond_wait(&condEchec, &mutexEchec); // Mettre en attente sur la variable de condition
             printf("main : Thread réveillé \n");
-            //pthread_mutex_lock(&mutexEchec);
         }
+
         struct timespec temps;
         temps.tv_sec = 1;
         temps.tv_nsec = 500000000;
 
         if(echec != AUCUN)
         {
-            pthread_mutex_lock(&mutexEtatJeu);
             etatJeu.nbEchecs++;
             
-            switch(echec)
-            {
-                case CHAT:
-                    
-                    etatJeu.etatAmis[CHAT] = TOUCHE;
-                    /pthread_mutex_unlock(&mutexEtatJeu);
-                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
-                    pthread_mutex_lock(&mutexEtatJeu);
-                    etatJeu.etatAmis[CHAT] = NORMAL;
-                    
-                    break;
-
-                case FLEUR_HG:
-                
-                    etatJeu.etatAmis[FLEUR_HG] = TOUCHE;
-                    //pthread_mutex_unlock(&mutexEtatJeu);
-                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
-                    //pthread_mutex_lock(&mutexEtatJeu);
-                    etatJeu.etatAmis[FLEUR_HG] = NORMAL;
-                    
-                    break;
-
-                case FLEUR_HD:
-                     
-                    etatJeu.etatAmis[FLEUR_HD] = TOUCHE;
-                    //pthread_mutex_unlock(&mutexEtatJeu);
-                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
-                    //pthread_mutex_lock(&mutexEtatJeu);
-                    etatJeu.etatAmis[FLEUR_HD] = NORMAL;
-                    
-                    break;
-
-                case FLEUR_BG:
-                    
-                    etatJeu.etatAmis[FLEUR_BG] = TOUCHE;
-                    //pthread_mutex_unlock(&mutexEtatJeu);
-                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
-                    //pthread_mutex_lock(&mutexEtatJeu);
-                    etatJeu.etatAmis[FLEUR_BG] = NORMAL;
-                    
-                    break;
-
-                case FLEUR_BD:
-                    
-                    etatJeu.etatAmis[FLEUR_BD] = TOUCHE;
-                    //pthread_mutex_unlock(&mutexEtatJeu);
-
-                    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
-                    
-                    //pthread_mutex_lock(&mutexEtatJeu);
-                    etatJeu.etatAmis[FLEUR_BD] = NORMAL;
-                    //pthread_mutex_unlock(&mutexEtatJeu);
-                    break;
-            }
+            etatJeu.etatAmis[FLEUR_HD] = TOUCHE;
+            nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+            etatJeu.etatAmis[FLEUR_HD] = NORMAL;
             
             echec = AUCUN;
-            //pthread_mutex_unlock(&mutexEchec);
         }
     }
    
@@ -383,7 +330,6 @@ void *fctThreadEvenements(void *)
                     break;
 
                 default:
-                    printf("AUCUN");
                     evenement = AUCUN; 
                     break;
             }
