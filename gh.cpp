@@ -110,14 +110,14 @@ int main(int argc, char* argv[])
         exit(1);
     }
 
-    /*sigAct.sa_handler = handlerSIGUSR2;
+    sigAct.sa_handler = handlerSIGUSR2;
     if (sigaction(SIGUSR2, &sigAct, NULL) == -1)
     {
         perror("Erreur de sigaction SIGUSR2");
         exit(1);
     }
     
-    sigAct.sa_handler = handlerSIGQUIT;
+    /*sigAct.sa_handler = handlerSIGQUIT;
     if (sigaction(SIGQUIT, &sigAct, NULL) == -1)
     {
         perror("Erreur de sigaction SIGQUIT");
@@ -207,6 +207,18 @@ int main(int argc, char* argv[])
                     usleep(1500000); // 1.5 seconde en microseconde
                     etatJeu.etatAmis[FLEUR_HD] = NORMAL;
                     break;
+
+                case FLEUR_BG:
+                    etatJeu.etatAmis[FLEUR_BG] = TOUCHE;
+                    usleep(1500000); // 1.5 seconde en microseconde
+                    etatJeu.etatAmis[FLEUR_BG] = NORMAL;
+                    break;
+
+                case FLEUR_BD:
+                    etatJeu.etatAmis[FLEUR_BD] = TOUCHE;
+                    usleep(1500000); // 1.5 seconde en microseconde
+                    etatJeu.etatAmis[FLEUR_BD] = NORMAL;
+                    break;
             }
             
             echec = AUCUN;
@@ -240,14 +252,6 @@ void* fctThreadFenetreGraphique(void*)
             afficherAmi(i, etatJeu.etatAmis[i]);
         }
 
-        /*for(int i = 0; i < 5; i++)
-        {
-            afficherChenilleG(i);
-            afficherChenilleD(i);
-            afficherAraigneeG(i);
-            afficherAraigneeD(i);
-        }*/
-
         for(int i = 0; i < 5; i++)
         {
             if(etatJeu.chenillesG[i].presence == NORMAL)
@@ -255,12 +259,26 @@ void* fctThreadFenetreGraphique(void*)
                 afficherChenilleG(i);
             }
         }
-
         for(int i = 0; i < 7; i++)
         {
             if(etatJeu.chenillesD[i].presence == NORMAL)
             {
                 afficherChenilleD(i);
+            }
+        }
+
+        for(int i = 0; i < 5; i++)
+        {
+            if(etatJeu.araigneesG[i].presence == NORMAL)
+            {
+                afficherAraigneeG(i);
+            }
+        }
+        for(int i = 0; i < 5; i++)
+        {
+            if(etatJeu.araigneesD[i].presence == NORMAL)
+            {
+                afficherAraigneeD(i);
             }
         }
 
@@ -393,10 +411,33 @@ void* fctThreadStanley(void*)
                                     exit(EXIT_FAILURE);
                                 }
                             }
-                            
                             if(etatJeu.positionStanley == 2 && etatJeu.guepes[1].presence == NORMAL)
                             {
                                 res = pthread_kill(etatJeu.guepes[1].tid, SIGINT);
+                                if (res != 0) 
+                                {
+                                    perror("Erreur lors de l'envoi du signal au thread");
+                                    exit(EXIT_FAILURE);
+                                }
+
+                                etatJeu.score ++;
+                            }
+
+                            if(etatJeu.positionStanley == 0 && etatJeu.araigneesG[4].presence == NORMAL)
+                            {
+                                res = pthread_kill(etatJeu.araigneesG[4].tid, SIGUSR2);
+                                if (res != 0) 
+                                {
+                                    perror("Erreur lors de l'envoi du signal au thread");
+                                    exit(EXIT_FAILURE);
+                                }
+
+                                etatJeu.score ++;
+                            }
+
+                            if(etatJeu.positionStanley == 3 && etatJeu.araigneesD[0].presence == NORMAL)
+                            {
+                                res = pthread_kill(etatJeu.araigneesD[0].tid, SIGUSR2);
                                 if (res != 0) 
                                 {
                                     perror("Erreur lors de l'envoi du signal au thread");
@@ -638,8 +679,8 @@ void* fctThreadEnnemis(void*)
             pthread_mutex_unlock(&mutexEchec);
 
             srand(time(NULL));
-            //typeEnnemi = rand()%5;
-            typeEnnemi = rand()%3;
+            typeEnnemi = rand()%5;
+            //typeEnnemi = rand()%3;
             //typeEnnemi = GUEPE;
 
             switch(typeEnnemi)
@@ -651,7 +692,7 @@ void* fctThreadEnnemis(void*)
                         perror("Erreur lors de la création de threadGuepe");
                         exit(EXIT_FAILURE);
                     }
-                    break;*/
+                    break;
 
                 case CHENILLE_G:
                     printf("fctThreadEnnemis : Création du threadChenilleG \n");
@@ -669,25 +710,25 @@ void* fctThreadEnnemis(void*)
                         perror("Erreur lors de la création de threadChenilleD");
                         exit(EXIT_FAILURE);
                     }
-                    break;
+                    break;*/
 
-                /*case ARAIGNEE_G:
+                case ARAIGNEE_G:
                     printf("fctThreadEnnemis : Création du threadAraigneeG \n");
                     res = pthread_create(&threadAraigneeG, NULL, fctThreadAraigneeG, NULL);
                     if (res != 0) {
                         perror("Erreur lors de la création de threadAraigneeG");
                         exit(EXIT_FAILURE);
                     }
-                    break;*/
+                    break;
 
-                /*case ARAIGNEE_D:
+                case ARAIGNEE_D:
                     printf("fctThreadEnnemis : Création du threadAraigneeD \n");
                     res = pthread_create(&threadAraigneeD, NULL, fctThreadAraigneeD, NULL);
                     if (res != 0) {
                         perror("Erreur lors de la création de threadAraigneeD");
                         exit(EXIT_FAILURE);
                     }
-                    break;*/
+                    break;
             }
         }
         else
@@ -788,12 +829,10 @@ void* fctThreadChenilleG(void*)
     sigprocmask(SIG_SETMASK, &mask, NULL); // applique le masque au processus
 
 
-    S_LOCALISATION loca;
     S_LOCALISATION* localisation = (S_LOCALISATION*)malloc(sizeof(S_LOCALISATION));
 
-    loca.orientation = GAUCHE;
-    loca.position = 4;
-    *localisation = loca;
+    localisation->orientation = GAUCHE;
+    localisation->position = 4;
 
     while(localisation->position > 0)
     {
@@ -851,12 +890,10 @@ void* fctThreadChenilleD(void*)
     sigprocmask(SIG_SETMASK, &mask, NULL); // applique le masque au processus
 
 
-    S_LOCALISATION loca;
     S_LOCALISATION* localisation = (S_LOCALISATION*)malloc(sizeof(S_LOCALISATION));
 
-    loca.orientation = DROITE;
-    loca.position = 0;
-    *localisation = loca;
+    localisation->orientation = DROITE;
+    localisation->position = 0;
 
     while(localisation->position < 6)
     {
@@ -933,16 +970,116 @@ void handlerSIGUSR1(int sign)
 
 void* fctThreadAraigneeG(void*)
 {
+    sigset_t mask;
+    sigfillset(&mask); // masque TOUS les signaux
+    sigdelset(&mask, SIGUSR2); // supprime SIGUSR2 des signaux masqués
+    sigprocmask(SIG_SETMASK, &mask, NULL); // applique le masque au processus
+
+
+    S_LOCALISATION* localisation = (S_LOCALISATION*)malloc(sizeof(S_LOCALISATION));
+
+    localisation->orientation = GAUCHE;
+    localisation->position = 0;
+
+    while(localisation->position < 4)
+    {
+        pthread_setspecific(keySpec, localisation);
+        etatJeu.araigneesG[localisation->position].presence = NORMAL;
+        etatJeu.araigneesG[localisation->position].tid = pthread_self();
+        usleep(600000); // 0.6 seconde en microseconde
+        etatJeu.araigneesG[localisation->position].presence = AUCUN;
+        localisation->position ++;
+    }
+
+    pthread_setspecific(keySpec, localisation);
+    etatJeu.araigneesG[localisation->position].presence = NORMAL;
+    etatJeu.araigneesG[localisation->position].tid = pthread_self();
+    usleep(600000); // 0.6 seconde en microseconde
+
+    printf("fctThreadAraigneeG : Verrouillage du mutexEchec \n");
+    pthread_mutex_lock(&mutexEchec);
+
+    echec = FLEUR_BG;
+
+    printf("fctThreadAraigneeG : Envoi d'un signal au main \n");
+    pthread_cond_signal(&condEchec); // Réveiller ThreadPrincipal
+
+    printf("fctThreadAraigneeG : Déverrouillage du mutexEchec \n");
+    pthread_mutex_unlock(&mutexEchec);
+
+    usleep(1500000); // 1.5 seconde en microseconde
+
+    etatJeu.araigneesG[localisation->position].presence = AUCUN;
+
+
     printf("fctThreadAraigneeG : Fin du thread \n");
     pthread_exit(0);
 }
 
 void* fctThreadAraigneeD(void*)
 {
+    sigset_t mask;
+    sigfillset(&mask); // masque TOUS les signaux
+    sigdelset(&mask, SIGUSR2); // supprime SIGUSR2 des signaux masqués
+    sigprocmask(SIG_SETMASK, &mask, NULL); // applique le masque au processus
+
+
+    S_LOCALISATION* localisation = (S_LOCALISATION*)malloc(sizeof(S_LOCALISATION));
+
+    localisation->orientation = DROITE;
+    localisation->position = 4;
+
+    while(localisation->position > 0)
+    {
+        pthread_setspecific(keySpec, localisation);
+        etatJeu.araigneesD[localisation->position].presence = NORMAL;
+        etatJeu.araigneesD[localisation->position].tid = pthread_self();
+        usleep(600000); // 0.6 seconde en microseconde
+        etatJeu.araigneesD[localisation->position].presence = AUCUN;
+        localisation->position --;
+    }
+
+    pthread_setspecific(keySpec, localisation);
+    etatJeu.araigneesD[localisation->position].presence = NORMAL;
+    etatJeu.araigneesD[localisation->position].tid = pthread_self();
+    usleep(600000); // 0.6 seconde en microseconde
+
+    printf("fctThreadAraigneeD : Verrouillage du mutexEchec \n");
+    pthread_mutex_lock(&mutexEchec);
+
+    echec = FLEUR_BD;
+
+    printf("fctThreadAraigneeD : Envoi d'un signal au main \n");
+    pthread_cond_signal(&condEchec); // Réveiller ThreadPrincipal
+
+    printf("fctThreadAraigneeD : Déverrouillage du mutexEchec \n");
+    pthread_mutex_unlock(&mutexEchec);
+
+    usleep(1500000); // 1.5 seconde en microseconde
+
+    etatJeu.araigneesD[localisation->position].presence = AUCUN;
+
+
     printf("fctThreadAraigneeD : Fin du thread \n");
     pthread_exit(0);
 }
 
+void handlerSIGUSR2(int sign)
+{
+    S_LOCALISATION* localisation = (S_LOCALISATION*)pthread_getspecific(keySpec);
+
+    if(localisation->orientation == GAUCHE)
+    {
+        etatJeu.araigneesG[localisation->position].presence = AUCUN;
+    }
+    else if(localisation->orientation == DROITE)
+    {
+        etatJeu.araigneesD[localisation->position].presence = AUCUN;
+    }
+
+    printf("handlerSIGUSR2 : Fin du thread \n");
+    pthread_exit(0);
+}
 
 void destructeurVS(void *p)
 {
