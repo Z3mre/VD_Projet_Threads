@@ -176,6 +176,7 @@ int main(int argc, char* argv[])
 
 
     // Code relatif aux 3 échecs
+    pthread_mutex_lock(&mutexEchec);
     while(etatJeu.nbEchecs < 3)
     {
         while (echec == AUCUN)
@@ -190,12 +191,15 @@ int main(int argc, char* argv[])
 
         if(echec != AUCUN)
         {
+            pthread_mutex_lock(&mutexEtatJeu);
             etatJeu.nbEchecs++;
             
             etatJeu.etatAmis[echec] = TOUCHE;
+            pthread_mutex_unlock(&mutexEtatJeu);
             nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+            pthread_mutex_lock(&mutexEtatJeu);
             etatJeu.etatAmis[echec] = NORMAL;
-            
+            pthread_mutex_unlock(&mutexEtatJeu);
             echec = AUCUN;
         }
     }
@@ -303,7 +307,6 @@ void *fctThreadEvenements(void *)
     {
         /*printf("fctThreadEnnemis : Verrouillage du mutexEchec \n");
         pthread_mutex_lock(&mutexEchec);*/
-
         //if(echec == AUCUN)
         {
             evenement = lireEvenement();
@@ -342,14 +345,15 @@ void *fctThreadEvenements(void *)
                     break;
             }
 
-            printf("fctThreadEvenements : Envoie d'un signal à un thread en attente sur condEvenement \n");
-            pthread_cond_signal(&condEvenement); // Réveiller ThreadStanley
+            
             
             struct timespec attente = {0, 100000000}; // 0,1 seconde en nanosecondes
             nanosleep(&attente, NULL);
 
             printf("fctThreadEvenements : Déverrouillage du mutexEvenement \n");
             pthread_mutex_unlock(&mutexEvenement);
+            printf("fctThreadEvenements : Envoie d'un signal à un thread en attente sur condEvenement \n");
+            pthread_cond_signal(&condEvenement); // Réveiller ThreadStanley
             
         }
         /*else
@@ -786,12 +790,17 @@ void* fctThreadGuepe(void*)
     int* position = (int*)malloc(sizeof(int*));
     
     *position = 0;
+    struct timespec temps;
+        temps.tv_sec = 1;
+        temps.tv_nsec = 0;
 
     pthread_setspecific(keySpec, position);
-    // mutex etat jeu
+    pthread_mutex_lock(&mutexEtatJeu);
     etatJeu.guepes[*position].presence = NORMAL;
     etatJeu.guepes[*position].tid = pthread_self();
-    usleep(1000000); // 1 seconde en microseconde METTRE EN NANOSLEEP
+    pthread_mutex_unlock(&mutexEtatJeu);
+    nanosleep(&temps,NULL); // 1 seconde en microseconde METTRE EN NANOSLEEP
+    pthread_mutex_lock(&mutexEtatJeu);
     etatJeu.guepes[*position].presence = AUCUN;
 
     *position = 1;
@@ -799,14 +808,15 @@ void* fctThreadGuepe(void*)
     {
         etatJeu.guepes[1].presence = AUCUN;
         etatJeu.score ++;
-        // mutex etat jeu
+        pthread_mutex_unlock(&mutexEtatJeu);
         pthread_exit(0);
     }
 
     pthread_setspecific(keySpec, position);
     etatJeu.guepes[*position].presence = NORMAL;
     etatJeu.guepes[*position].tid = pthread_self();
-    usleep(1000000); // 1 seconde en microseconde
+    pthread_mutex_unlock(&mutexEtatJeu);
+    nanosleep(&temps,NULL); // 1 seconde en microseconde
 
     printf("fctThreadGuepe : Verrouillage du mutexEchec \n");
     pthread_mutex_lock(&mutexEchec);
@@ -818,8 +828,10 @@ void* fctThreadGuepe(void*)
 
     printf("fctThreadGuepe : Déverrouillage du mutexEchec \n");
     pthread_mutex_unlock(&mutexEchec);
+    temps.tv_nsec = 500000000;
 
-    usleep(1500000); // 1.5 seconde en microseconde
+
+    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
 
     etatJeu.guepes[*position].presence = AUCUN;
 
@@ -847,7 +859,9 @@ void* fctThreadChenilleG(void*)
     sigdelset(&mask, SIGUSR1); // supprime SIGUSR1 des signaux masqués
     sigprocmask(SIG_SETMASK, &mask, NULL); // applique le masque au processus
 
-
+     struct timespec temps;
+        temps.tv_sec = 0;
+        temps.tv_nsec = 800000000;
     S_LOCALISATION* localisation = (S_LOCALISATION*)malloc(sizeof(S_LOCALISATION));
 
     localisation->orientation = GAUCHE;
@@ -855,31 +869,31 @@ void* fctThreadChenilleG(void*)
 
     while(localisation->position > 0)
     {
+        pthread_mutex_lock(&mutexEtatJeu);
         pthread_setspecific(keySpec, localisation);
         etatJeu.chenillesG[localisation->position].presence = NORMAL;
         etatJeu.chenillesG[localisation->position].tid = pthread_self();
-        usleep(800000); // 0.8 seconde en microseconde
+        pthread_mutex_unlock(&mutexEtatJeu);
+       nanosleep(&temps,NULL); // 0.8 seconde en microseconde
+        pthread_mutex_lock(&mutexEtatJeu);
         etatJeu.chenillesG[localisation->position].presence = AUCUN;
         localisation->position --;
 
-        if(etatJeu.etatStanley == HAUT && etatJeu.positionStanley == 0 && etatJeu.actionStanley == SPRAY)
+        if(etatJeu.etatStanley == HAUT && (etatJeu.positionStanley == 0 || etatJeu.positionStanley == 1) && etatJeu.actionStanley == SPRAY)
         {
             etatJeu.chenillesG[localisation->position].presence = AUCUN;
             etatJeu.score ++;
-            pthread_exit(0);
-        }
-        if(etatJeu.etatStanley == HAUT && etatJeu.positionStanley == 1 && etatJeu.actionStanley == SPRAY)
-        {
-            etatJeu.chenillesG[localisation->position].presence = AUCUN;
-            etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
             pthread_exit(0);
         }
     }
 
+    
     pthread_setspecific(keySpec, localisation);
     etatJeu.chenillesG[localisation->position].presence = NORMAL;
     etatJeu.chenillesG[localisation->position].tid = pthread_self();
-    usleep(800000); // 0.8 seconde en microseconde
+    pthread_mutex_unlock(&mutexEtatJeu);
+    nanosleep(&temps,NULL); // 0.8 seconde en microseconde
 
     printf("fctThreadChenilleG : Verrouillage du mutexEchec \n");
     pthread_mutex_lock(&mutexEchec);
@@ -891,15 +905,20 @@ void* fctThreadChenilleG(void*)
 
     printf("fctThreadChenilleG : Déverrouillage du mutexEchec \n");
     pthread_mutex_unlock(&mutexEchec);
+    temps.tv_sec = 1;
+    temps.tv_nsec = 500000000;
+    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
 
-    usleep(1500000); // 1.5 seconde en microseconde
-
+    pthread_mutex_lock(&mutexEtatJeu);
     etatJeu.chenillesG[localisation->position].presence = AUCUN;
+    pthread_mutex_unlock(&mutexEtatJeu);
 
 
     printf("fctThreadChenilleG : Fin du thread \n");
     pthread_exit(0);
 }
+
+
 
 void* fctThreadChenilleD(void*)
 {
@@ -913,13 +932,19 @@ void* fctThreadChenilleD(void*)
 
     localisation->orientation = DROITE;
     localisation->position = 0;
+    struct timespec temps;
+    temps.tv_sec = 0;
+    temps.tv_nsec = 800000000;
 
     while(localisation->position < 6)
     {
+        pthread_mutex_lock(&mutexEtatJeu);
         pthread_setspecific(keySpec, localisation);
         etatJeu.chenillesD[localisation->position].presence = NORMAL;
         etatJeu.chenillesD[localisation->position].tid = pthread_self();
-        usleep(800000); // 0.8 seconde en microseconde
+        pthread_mutex_unlock(&mutexEtatJeu);
+        nanosleep(&temps,NULL); // 0.8 seconde en microseconde
+        pthread_mutex_lock(&mutexEtatJeu);
         etatJeu.chenillesD[localisation->position].presence = AUCUN;
         localisation->position ++;
 
@@ -927,18 +952,21 @@ void* fctThreadChenilleD(void*)
         {
             etatJeu.chenillesD[localisation->position].presence = AUCUN;
             etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
             pthread_exit(0);
         }
         if(etatJeu.etatStanley == HAUT && etatJeu.positionStanley == 4 && etatJeu.actionStanley == SPRAY)
         {
             etatJeu.chenillesD[localisation->position].presence = AUCUN;
             etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
             pthread_exit(0);
         }
         if(etatJeu.etatStanley == HAUT && etatJeu.positionStanley == 5 && etatJeu.actionStanley == SPRAY)
         {
             etatJeu.chenillesD[localisation->position].presence = AUCUN;
             etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
             pthread_exit(0);
         }
     }
@@ -946,7 +974,8 @@ void* fctThreadChenilleD(void*)
     pthread_setspecific(keySpec, localisation);
     etatJeu.chenillesD[localisation->position].presence = NORMAL;
     etatJeu.chenillesD[localisation->position].tid = pthread_self();
-    usleep(800000); // 0.8 seconde en microseconde
+    pthread_mutex_unlock(&mutexEtatJeu);
+    nanosleep(&temps,NULL); // 0.8 seconde en microseconde
 
     printf("fctThreadChenilleD : Verrouillage du mutexEchec \n");
     pthread_mutex_lock(&mutexEchec);
@@ -959,9 +988,14 @@ void* fctThreadChenilleD(void*)
     printf("fctThreadChenilleD : Déverrouillage du mutexEchec \n");
     pthread_mutex_unlock(&mutexEchec);
 
-    usleep(1500000); // 1.5 seconde en microseconde
+    temps.tv_sec = 1;
+    temps.tv_nsec = 500000000;
 
+    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+
+    pthread_mutex_lock(&mutexEtatJeu);
     etatJeu.chenillesD[localisation->position].presence = AUCUN;
+    pthread_mutex_unlock(&mutexEtatJeu);
 
 
     printf("fctThreadChenilleD : Fin du thread \n");
@@ -1000,17 +1034,21 @@ void* fctThreadAraigneeG(void*)
 
     localisation->orientation = GAUCHE;
     localisation->position = 0;
+    struct timespec temps;
+    temps.tv_sec = 0;
+    temps.tv_nsec = 600000000;
     
     while(localisation->position < 4)
     {
-        // pthread_mutex_lock(&mutexEtatJeu);
+        pthread_mutex_lock(&mutexEtatJeu);
         pthread_setspecific(keySpec, localisation);
         etatJeu.araigneesG[localisation->position].presence = NORMAL;
         etatJeu.araigneesG[localisation->position].tid = pthread_self();
 
-        // pthread_mutex_unlock(&mutexEtatJeu);
-        usleep(600000); // 0.6 seconde en microseconde
+        pthread_mutex_unlock(&mutexEtatJeu);
+        nanosleep(&temps,NULL); // 0.6 seconde en microseconde
 
+        pthread_mutex_lock(&mutexEtatJeu);
         if(etatJeu.insecticidesG[localisation->position].presence == NORMAL)
         {
             res = pthread_kill(etatJeu.insecticidesG[localisation->position].tid, SIGQUIT);
@@ -1021,22 +1059,22 @@ void* fctThreadAraigneeG(void*)
             }
 
             etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
         }
 
-        // pthread_mutex_lock(&mutexEtatJeu);
         etatJeu.araigneesG[localisation->position].presence = AUCUN;
         localisation->position ++;
-        // pthread_mutex_unlock(&mutexEtatJeu);
+        pthread_mutex_unlock(&mutexEtatJeu);
     }
-    // pthread_mutex_lock(&mutexEtatJeu);
+    pthread_mutex_lock(&mutexEtatJeu);
     pthread_setspecific(keySpec, localisation);
     etatJeu.araigneesG[localisation->position].presence = NORMAL;
     etatJeu.araigneesG[localisation->position].tid = pthread_self();
-    // pthread_mutex_unlock(&mutexEtatJeu);
-    usleep(600000); // 0.6 seconde en microseconde
+    pthread_mutex_unlock(&mutexEtatJeu);
+    nanosleep(&temps,NULL); // 0.6 seconde en microseconde
 
     printf("fctThreadAraigneeG : Verrouillage du mutexEchec \n");
-    // pthread_mutex_lock(&mutexEchec);
+    pthread_mutex_lock(&mutexEchec);
 
     echec = FLEUR_BG;
 
@@ -1045,11 +1083,13 @@ void* fctThreadAraigneeG(void*)
 
     printf("fctThreadAraigneeG : Déverrouillage du mutexEchec \n");
     pthread_mutex_unlock(&mutexEchec);
+    temps.tv_sec = 1;
+    temps.tv_nsec = 500000000;
+    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
 
-    usleep(1500000); // 1.5 seconde en microseconde
-
+    pthread_mutex_lock(&mutexEtatJeu);
     etatJeu.araigneesG[localisation->position].presence = AUCUN;
-
+    pthread_mutex_unlock(&mutexEtatJeu);
 
     printf("fctThreadAraigneeG : Fin du thread \n");
     pthread_exit(0);
@@ -1068,12 +1108,20 @@ void* fctThreadAraigneeD(void*)
     localisation->orientation = DROITE;
     localisation->position = 4;
 
+    struct timespec temps;
+    temps.tv_sec = 0;
+    temps.tv_nsec = 600000000;
+
     while(localisation->position > 0)
     {
+        pthread_mutex_lock(&mutexEtatJeu);
         pthread_setspecific(keySpec, localisation);
         etatJeu.araigneesD[localisation->position].presence = NORMAL;
         etatJeu.araigneesD[localisation->position].tid = pthread_self();
-        usleep(600000); // 0.6 seconde en microseconde
+        pthread_mutex_unlock(&mutexEtatJeu);
+        nanosleep(&temps,NULL); // 0.6 seconde en microseconde
+
+        pthread_mutex_lock(&mutexEtatJeu);
 
         if(etatJeu.insecticidesD[localisation->position].presence == NORMAL)
         {
@@ -1085,16 +1133,20 @@ void* fctThreadAraigneeD(void*)
             }
 
             etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
         }
 
         etatJeu.araigneesD[localisation->position].presence = AUCUN;
         localisation->position --;
+        pthread_mutex_unlock(&mutexEtatJeu);
     }
 
+    pthread_mutex_lock(&mutexEtatJeu);
     pthread_setspecific(keySpec, localisation);
     etatJeu.araigneesD[localisation->position].presence = NORMAL;
     etatJeu.araigneesD[localisation->position].tid = pthread_self();
-    usleep(600000); // 0.6 seconde en microseconde
+    pthread_mutex_unlock(&mutexEtatJeu);
+    nanosleep(&temps,NULL); // 0.6 seconde en microseconde
 
     printf("fctThreadAraigneeD : Verrouillage du mutexEchec \n");
     pthread_mutex_lock(&mutexEchec);
@@ -1107,9 +1159,14 @@ void* fctThreadAraigneeD(void*)
     printf("fctThreadAraigneeD : Déverrouillage du mutexEchec \n");
     pthread_mutex_unlock(&mutexEchec);
 
-    usleep(1500000); // 1.5 seconde en microseconde
+    temps.tv_sec = 1;
+    temps.tv_nsec = 500000000;
 
+    nanosleep(&temps,NULL); // 1.5 seconde en microseconde
+
+    pthread_mutex_lock(&mutexEtatJeu);
     etatJeu.araigneesD[localisation->position].presence = AUCUN;
+    pthread_mutex_unlock(&mutexEtatJeu);
 
 
     printf("fctThreadAraigneeD : Fin du thread \n");
@@ -1148,17 +1205,22 @@ void* fctThreadInsecticideG(void*)
     localisation->orientation = GAUCHE;
     localisation->position = 3;
 
+    struct timespec temps;
+    temps.tv_sec = 0;
+    temps.tv_nsec = 200000000;
+
     
     while(localisation->position >= 0)
     {
-        // pthread_mutex_lock(&mutexEtatJeu);
+        pthread_mutex_lock(&mutexEtatJeu);
         pthread_setspecific(keySpec, localisation);
         etatJeu.insecticidesG[localisation->position].presence = NORMAL;
         etatJeu.insecticidesG[localisation->position].tid = pthread_self();
 
-        // pthread_mutex_unlock(&mutexEtatJeu);
-        usleep(200000); // 0.2 seconde en microseconde
+        pthread_mutex_unlock(&mutexEtatJeu);
+        nanosleep(&temps,NULL); // 0.2 seconde en microseconde
 
+        pthread_mutex_lock(&mutexEtatJeu);
         if(etatJeu.araigneesG[localisation->position].presence == NORMAL)
         {
             res = pthread_kill(etatJeu.araigneesG[localisation->position].tid, SIGUSR2);
@@ -1169,12 +1231,12 @@ void* fctThreadInsecticideG(void*)
             }
 
             etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
         }
 
-        // pthread_mutex_lock(&mutexEtatJeu);
         etatJeu.insecticidesG[localisation->position].presence = AUCUN;
         localisation->position --;
-        // pthread_mutex_unlock(&mutexEtatJeu);
+        pthread_mutex_unlock(&mutexEtatJeu);
     }
 
     
@@ -1195,17 +1257,22 @@ void *fctThreadInsecticideD(void *)
     localisation->orientation = DROITE;
     localisation->position = 1;
 
+    struct timespec temps;
+    temps.tv_sec = 0;
+    temps.tv_nsec = 200000000;
+
   
     while(localisation->position <= 4)
     {
-        // pthread_mutex_lock(&mutexEtatJeu);
+        pthread_mutex_lock(&mutexEtatJeu);
         pthread_setspecific(keySpec, localisation);
         etatJeu.insecticidesD[localisation->position].presence = NORMAL;
         etatJeu.insecticidesD[localisation->position].tid = pthread_self();
 
-        // pthread_mutex_unlock(&mutexEtatJeu);
-        usleep(200000); // 0.2 seconde en microseconde
+        pthread_mutex_unlock(&mutexEtatJeu);
+        nanosleep(&temps,NULL); // 0.2 seconde en microseconde
 
+        pthread_mutex_lock(&mutexEtatJeu);
         if(etatJeu.araigneesD[localisation->position].presence == NORMAL)
         {
             res = pthread_kill(etatJeu.araigneesD[localisation->position].tid, SIGUSR2);
@@ -1216,12 +1283,12 @@ void *fctThreadInsecticideD(void *)
             }
 
             etatJeu.score ++;
+            pthread_mutex_unlock(&mutexEtatJeu);
         }
 
-        // pthread_mutex_lock(&mutexEtatJeu);
         etatJeu.insecticidesD[localisation->position].presence = AUCUN;
         localisation->position ++;
-        // pthread_mutex_unlock(&mutexEtatJeu);
+        pthread_mutex_unlock(&mutexEtatJeu);
     }
     
     printf("fctThreadInsecticideD : Fin du thread \n");
